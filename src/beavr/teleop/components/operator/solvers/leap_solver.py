@@ -228,10 +228,6 @@ class LeapHandIKSolver:
             finger: positions for finger, positions in full_finger_positions.items() if len(positions) > 0
         }
 
-        # PIP link indices (DFS order): index=3 (dip), middle=8 (dip_2), ring=13 (dip_3), thumb=17 (thumb_pip)
-        # Each is the link at the PIP-equivalent joint position for that finger.
-        _pip_link_for_finger = {"index": 3, "middle": 8, "ring": 13, "thumb": 17}
-
         # Compute target positions only for active fingers
         target_positions_dict = {}
         for finger in ["thumb", "index", "middle", "ring"]:
@@ -244,24 +240,13 @@ class LeapHandIKSolver:
                     # Transform the positions - convert to Python lists to avoid NumPy array comparison issues
                     is_ring = finger == "ring"
                     is_index = finger == "index"
-                    is_thumb = finger == "thumb"
-                    middle_pos_transformed = list(
-                        self.transform_position(middle_pos, is_ring, is_index, is_thumb)
-                    )
-                    tip_pos_transformed = list(self.transform_position(tip_pos, is_ring, is_index, is_thumb))
+                    middle_pos_transformed = list(self.transform_position(middle_pos, is_ring, is_index))
+                    tip_pos_transformed = list(self.transform_position(tip_pos, is_ring, is_index))
 
                     target_positions_dict[finger] = {
                         "middle": middle_pos_transformed,
                         "tip": tip_pos_transformed,
                     }
-
-                    # Also constrain the PIP joint (intermediate position) to prevent the IK
-                    # from satisfying near-palm targets via abduction instead of flexion.
-                    if len(positions) >= 3:
-                        pip_pos = positions[-3]  # intermediate / PIP keypoint
-                        target_positions_dict[finger]["pip"] = list(
-                            self.transform_position(pip_pos, is_ring, is_index, is_thumb)
-                        )
 
         # Create the target_positions list in the order expected by compute_ik
         # [thumb_middle, thumb_tip, index_middle, index_tip, middle_middle, middle_tip, ring_middle, ring_tip]
@@ -295,24 +280,17 @@ class LeapHandIKSolver:
 
         # Map target positions to both sets of end effectors
         leap_end_effector_pos = [
-            # For fingertip joints (links 4, 9, 14, 19)
+            # For fingertip joints
             index_middle_pos,  # Index fingertip
             middle_middle_pos,  # Middle fingertip
             ring_middle_pos,  # Ring fingertip
             thumb_middle_pos,  # Thumb fingertip
-            # For tip_head links (links 5, 10, 15, 20)
+            # For tip_head links
             index_tip_pos,  # Index tip_head
             middle_tip_pos,  # Middle tip_head
             ring_tip_pos,  # Ring tip_head
             thumb_tip_pos,  # Thumb tip_head
         ]
-        ik_indices = list(self.all_indices)
-
-        # Append PIP constraints for active fingers to reduce IK ambiguity on curl
-        for finger in ["index", "middle", "ring", "thumb"]:
-            if finger in target_positions_dict and "pip" in target_positions_dict[finger]:
-                ik_indices.append(_pip_link_for_finger[finger])
-                leap_end_effector_pos.append(target_positions_dict[finger]["pip"])
 
         # Visualize target positions if in GUI mode
         if p.getConnectionInfo(self.physics_client)["connectionMethod"] == p.GUI:
@@ -398,7 +376,7 @@ class LeapHandIKSolver:
         try:
             joint_poses = p.calculateInverseKinematics2(
                 self.hand_id,
-                ik_indices,
+                self.all_indices,
                 leap_end_effector_pos,
                 currentPositions=current_positions,
                 solver=p.IK_DLS,
@@ -422,10 +400,13 @@ class LeapHandIKSolver:
             real_robot_hand_q[8:12] = joint_poses[8:12]
             real_robot_hand_q[12:16] = joint_poses[12:16]
 
-            # Index motors 0/1 are physically swapped on this hardware — no reversal for index.
-            # Middle and ring still need the side/fwd swap.
+            # Reverse some joint pairs as in the visualization script
+            real_robot_hand_q[0:2] = real_robot_hand_q[0:2][::-1]
             real_robot_hand_q[4:6] = real_robot_hand_q[4:6][::-1]
             real_robot_hand_q[8:10] = real_robot_hand_q[8:10][::-1]
+
+            real_robot_hand_q[12] -= 0.5
+            real_robot_hand_q[13] += 0.5
 
             # Apply smoothing if we have a previous solution
             if hasattr(self, "last_solution") and self.last_solution is not None:

@@ -640,9 +640,9 @@ class XArmOperator(Operator):
                 # Use the *raw* target pose from the first frame as the initial filter state
                 self.comp_filter = CompStateFilter(
                     init_state=cart_target_raw,
-                    pos_ratio=0.78,  # heavy smoothing; step toward target = 22% of remaining gap
-                    ori_ratio=0.88,  # orientation slightly more damped to suppress wrist noise
-                    adaptive=True,  # automatically reduces ratio during fast hand sweeps
+                    pos_ratio=0.7,  # Default values, consider making configurable
+                    ori_ratio=0.85,
+                    adaptive=True,
                 )
                 cart_target_filtered = cart_target_raw  # Use raw value for the very first frame
             else:
