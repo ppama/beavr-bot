@@ -16,7 +16,8 @@ transforms:
     host: ${host_address}
     keypoint_port: ${unified_data_port}
     transformation_port: ${keypoint_transform_port}
-    moving_average_limit: 1
+    moving_average_limit: 8
+    use_filter: True
 
 # Visualizers used to visualize the keypoints stream
 visualizers:
@@ -63,7 +64,7 @@ operators:
     endeff_subscribe_port: 10010
     moving_average_limit: 1
     arm_resolution_port: ${unified_data_port}
-    use_filter: False
+    use_filter: True
     teleoperation_reset_port: ${unified_data_port}
     logging_config:
       enabled: False

@@ -17,7 +17,6 @@ repos:
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.1
     hooks:
-      - id: codespell # See pyproject.toml for args
+      - id: codespell # args in pyproject.toml [tool.codespell]
         additional_dependencies:
           - tomli
-        args: [--maxkb=5000]

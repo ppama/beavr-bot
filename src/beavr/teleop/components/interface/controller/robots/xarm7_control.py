@@ -333,9 +333,12 @@ class Robot(XArmAPI):
                 self.set_mode_and_state(1, 0)
                 time.sleep(0.2)
 
-            # Execute move in servo mode using axis–angle format
+            # Execute move in servo mode using axis–angle format.
+            # speed=50 mm/s: slow enough to feel safe, fast enough to clear each
+            # filtered step (≈1-3 mm at 50 Hz) within 1-2 servo cycles so the
+            # arm doesn't build up a lag backlog that causes direction-change jerks.
             status = self.set_servo_cartesian_aa(
-                pose_mm, wait=False, relative=False, mvacc=50, speed=10, is_radian=True
+                pose_mm, wait=False, relative=False, mvacc=200, speed=50, is_radian=True
             )
 
             if status != 0:
@@ -463,12 +466,12 @@ class DexArmControl:
         """Initialize the XArm controller with velocity limits"""
         self.robot = Robot(ip, is_radian=True, simulation_mode=False)
 
-        # Set global velocity and acceleration limits
-        self.robot.set_tcp_maxacc(50)  # Lower max acceleration (mm/s²)
-        self.robot.set_joint_maxacc(10)  # Lower joint acceleration (rad/s²)
-
-        # For orientation specifically
-        self.robot.set_tcp_jerk(100)  # Lower jerk (smooths changes in acceleration)
+        # Global velocity and acceleration limits for servo-mode tracking.
+        # These are ceilings — the arm only uses as much as each command requires.
+        # Keep conservative for safety; the filter upstream ensures smooth inputs.
+        self.robot.set_tcp_maxacc(200)  # mm/s² (was 50 — raised just enough to track filtered targets)
+        self.robot.set_joint_maxacc(15)  # rad/s²
+        self.robot.set_tcp_jerk(1000)  # mm/s³  (smoother acceleration ramps than original 100)
 
         self.robot.reset()
 

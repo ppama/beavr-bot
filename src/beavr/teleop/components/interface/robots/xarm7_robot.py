@@ -300,6 +300,9 @@ class XArm7Robot(RobotWrapper):
     def stream(self):
         self.home()
         assert self._controller.robot.set_mode_and_state(1, 0), "Failed to enter SERVO-READY"
+        self._controller.robot.set_tcp_jerk(1000)  # matches DexArmControl init
+        self._controller.robot.set_joint_jerk(20)
+        self._controller.robot.set_cartesian_velo_continuous(True)  # blend consecutive servo cmds
 
         target_interval = 1.0 / self._data_frequency
         next_frame_time = time.time()
